@@ -25,13 +25,15 @@ class Bridge():
 
         logger.warn('Press the button on the bridge now!')
         with urllib.request.urlopen(req) as conn:
-            resp = json.loads(conn.read())
-            if 'success' in resp:
-                logger.info('Registration with Hue bridge successful!')
-                return resp['success']
-            else:
-                logger.error('Bridge response: '+str(resp))
-                return None
+            for response in json.loads(conn.read()):
+                if 'success' in response:
+                    logger.info('Registration with Hue bridge successful!')
+                    return response['success']['username']
+                elif 'error' in response:
+                    logger.error('Registration failed with code {:}: {:}'.format(
+                                response['error']['type'], response['error']['description']))
+                    return None
+        return None
 
 
     def __init__(self, host, auth):
