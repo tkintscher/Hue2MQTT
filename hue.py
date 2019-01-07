@@ -326,7 +326,7 @@ class HueBatteryStatus(object):
     @classmethod
     def is_applicable(cls, data):
         return (data['manufacturername'] == 'Philips') \
-           and (data['type'] == 'ZLLTemperature')
+           and ('battery' in data['config'])
 
     @classmethod
     def values(cls):
