@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import argparse
-import configparser
 import json
 import logging
+import os
 import sys
 import time
 
@@ -21,25 +21,29 @@ mqtt_logger = logging.getLogger('MQTT')
 
 # parse command line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', default='config.txt',     help='Configuration file')
-parser.add_argument('--poll',   default=0.1, type=float,  help='Polling interval (seconds)')
+parser.add_argument('--config', default='config.json',    help='Configuration file')
 args = parser.parse_args()
 
 # read config file
-config = configparser.ConfigParser()
-config.read(args.config)
+with open(args.config, 'r') as f:
+    config = json.load(f)
 
-# register with Hue bridge if no API key is present
-if 'auth' not in config.options('Hue'):
-    auth_key = hue.Bridge.register(config['Hue']['Host'])
-    if auth_key is None:
+
+secret_file = 'config.secret'
+try:
+    # try to read API key from file
+    with open(secret_file, 'r') as f:
+        hue_api_key = f.read()
+except IOError:
+    # register with Hue bridge if no API key is present
+    hue_api_key = hue.Bridge.register(config['Hue']['Host'])
+    if hue_api_key is None:
         sys.exit(1)
-    config.set('Hue', 'Auth', auth_key)
-    with open(args.config, 'w') as f:
-        config.write(f)
+    with open(secret_file, 'w') as f:
+        f.write(hue_api_key)
 
 # connect to bridge
-bridge = hue.Bridge(config['Hue']['Host'], config['Hue']['Auth'])
+bridge = hue.Bridge(config['Hue']['Host'], hue_api_key)
 
 # set up MQTT
 mqtt_prefix = config['MQTT']['Prefix']
@@ -65,7 +69,7 @@ def on_message(client, userdata, message):
     elif action == 'update':
         device = userdata.by_uid(uid)
         device.update()
-        client.publish('/'.join((prefix, dtype, uid)), json.dumps(device.data, indent=2), 0, True)
+        client.publish('/'.join((prefix, dtype, uid)), json.dumps(device.data), 0, True)
 
 client = mqtt.Client(config['MQTT']['Client'], clean_session=False, userdata=bridge)
 client.enable_logger(mqtt_logger)
@@ -73,24 +77,25 @@ client.on_connect    = on_connect
 client.on_disconnect = on_disconnect
 client.on_publish    = on_publish
 client.on_message    = on_message
-if config.getboolean('MQTT', 'TLS'):
+if config['MQTT']['TLS']:
     client.tls_set()
-client.connect(config['MQTT']['Host'], port=int(config['MQTT']['Port']), keepalive=60)
+client.connect(config['MQTT']['Host'], port=config['MQTT']['Port'], keepalive=60)
 
 # publish current state for each device
 for device in bridge:
     path = '{:}/{:}/{:}'.format(mqtt_prefix, device.kind, device.uid)
     device.update()
     main_logger.debug('%s -> %s', path, device.data)
-    client.publish(path, json.dumps(device.data, indent=2), 0, True)
+    client.publish(path, json.dumps(device.data), 0, True)
 
 # subscribe to external settings
 client.subscribe('{:}/+/+/set'.format(mqtt_prefix))
 client.subscribe('{:}/+/+/update'.format(mqtt_prefix))
 
 # main loop
+sleep_time = config['Hue']['SleepSeconds']
 while True:
-    time.sleep(0.1)
+    time.sleep(sleep_time)
 
     # update sensor and light status
     changed_devices = bridge.update('sensors') + bridge.update('lights')
@@ -99,7 +104,7 @@ while True:
     for device in changed_devices:
         path = '{:}/{:}/{:}'.format(mqtt_prefix, device.kind, device.uid)
         main_logger.info('%s -> %s', path, device.data)
-        client.publish(path, json.dumps(device.data, indent=2), 0, True)
+        client.publish(path, json.dumps(device.data), 0, True)
 
-    # process mqtt messages
+    # process MQTT messages
     client.loop()

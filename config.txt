@@ -1,9 +1,0 @@
-[Hue]
-Host = Philips-HUE
-
-[MQTT]
-Host   = my-mqtt-host
-Port   = 1883
-Client = hue
-Prefix = hue
-TLS    = False

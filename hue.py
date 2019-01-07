@@ -270,15 +270,15 @@ class HueLight(object):
 
     def get(self, data):
         return { 'on':         data['state']['on'],
-                 'brightness': data['state']['bri'],
+                 'brightness': data['state']['bri'] / 254.,
                  'alert':      data['state']['alert'], }
 
     def set(self, on=None, brightness=None, alert=None, **kwargs):
-        if (brightness is not None) and ((brightness < 0) or (brightness > 254)):
+        if (brightness is not None) and ((brightness < 0) or (brightness > 1)):
             logger.error('Brightness {:} is out of range (0..254)!'.format(brightness))
 
         return { 'state': { 'on':    on,
-                            'bri':   brightness,
+                            'bri':   int(brightness * 254),
                             'alert': alert } }
 
 

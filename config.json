@@ -1,0 +1,14 @@
+{
+	"MQTT": {
+		"Host":   "localhost",
+		"Port":   1883,
+		"Client": "redshift",
+		"Prefix": "redshift",
+		"TLS":    false
+	},
+
+	"Hue": {
+		"Host":         "Philips-HUE.fritz.box",
+		"SleepSeconds": 0.1
+	}
+}
