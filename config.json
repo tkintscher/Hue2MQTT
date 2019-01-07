@@ -1,9 +1,9 @@
 {
 	"MQTT": {
-		"Host":   "localhost",
+		"Host":   "raspi.fritz.box",
 		"Port":   1883,
-		"Client": "redshift",
-		"Prefix": "redshift",
+		"Client": "hue",
+		"Prefix": "hue",
 		"TLS":    false
 	},
 
